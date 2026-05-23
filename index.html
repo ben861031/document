@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公文稽催平台</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js">
+window.addEventListener('DOMContentLoaded', function(){
+
+    const today = new Date();
+
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+
+    const dateInput =
+        document.getElementById('auditDate');
+
+    if(dateInput){
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+
+});
+
+
+
+
+function copyTableResult(){
+
+    const table =
+        document.querySelector('table');
+
+    if(!table){
+        return;
+    }
+
+    // 複製表格並強制每格字體
+    const clonedTable =
+        table.cloneNode(true);
+
+    clonedTable.style.fontFamily =
+        "'DFKai-SB','標楷體',serif";
+
+    clonedTable.style.fontSize =
+        "12pt";
+
+    clonedTable.style.borderCollapse =
+        "collapse";
+
+    clonedTable.style.width = "100%";
+
+    clonedTable.style.tableLayout =
+        "fixed";
+
+    clonedTable.style.border =
+        "1px solid black";
+
+    clonedTable.querySelectorAll('th,td')
+    .forEach(cell=>{
+
+        cell.style.fontFamily =
+            "'DFKai-SB','標楷體',serif";
+
+        cell.style.fontSize = "12pt";
+
+        cell.style.border =
+            "1px solid black";
+
+        cell.style.padding =
+            "8px 6px";
+
+        cell.style.verticalAlign =
+            "middle";
+
+        cell.style.wordBreak =
+            "break-word";
+
+        // 主旨欄靠左
+        const headerRow =
+            clonedTable.querySelectorAll('th');
+
+        let subjectIndex = -1;
+
+        headerRow.forEach((th,index)=>{
+
+            if(
+                th.innerText.includes('主旨') ||
+                th.innerText.includes('案由')
+            ){
+                subjectIndex = index;
+            }
+
+        });
+
+        const row =
+            cell.parentElement;
+
+        const cells =
+            Array.from(row.children);
+
+        const currentIndex =
+            cells.indexOf(cell);
+
+        if(currentIndex === subjectIndex){
+
+            // 表頭維持置中
+            if(cell.tagName === 'TD'){
+                cell.style.textAlign = "left";
+            }else{
+                cell.style.textAlign = "center";
+            }
+
+        }
+
+        
+        // 固定欄寬
+        const headerText =
+            headerRow[currentIndex]
+            ? headerRow[currentIndex].innerText.trim()
+            : '';
+
+        if(headerText.includes('表單編號')){
+            cell.style.width = '105px';
+            cell.style.textAlign = 'center';
+        }
+
+        if(
+            headerText.includes('主旨') ||
+            headerText.includes('案由')
+        ){
+            cell.style.width = '520px';
+        }
+
+        if(headerText.includes('收文日期')){
+            cell.style.width = '95px';
+            cell.style.textAlign = 'center';
+        }
+
+        if(
+            headerText.includes('應歸檔日期') ||
+            headerText.includes('限辦日期')
+        ){
+            cell.style.width = '105px';
+            cell.style.textAlign = 'center';
+        }
+
+        if(headerText.includes('已逾期天數')){
+            cell.style.width = '72px';
+        }
+
+// 已逾期天數置中
+        if(
+            cell.innerText &&
+            !isNaN(cell.innerText.trim())
+        ){
+            cell.style.textAlign = "center";
+        }
+
+    });
+
+    
+    // 複製時移除公文類型欄
+    const clonedHeaders =
+        clonedTable.querySelectorAll('th');
+
+    let removeIndex = -1;
+
+    clonedHeaders.forEach((th,index)=>{
+
+        if(th.innerText.trim() === '公文類型'){
+            removeIndex = index;
+        }
+
+    });
+
+    if(removeIndex >= 0){
+
+        clonedTable.querySelectorAll('tr')
+        .forEach(tr=>{
+
+            const cells =
+                tr.querySelectorAll('th,td');
+
+            if(cells[removeIndex]){
+                cells[removeIndex].remove();
+            }
+
+        });
+
+    }
+
+
+const titleHtml = `
+<div style="width:100%;text-align:center;margin-bottom:12px;">
+<div style="font-family:'Microsoft JhengHei',sans-serif;font-size:18pt;font-weight:bold;margin-bottom:2px;">
+環興科技股份有限公司
+</div>
+<div style="font-family:'Microsoft JhengHei',sans-serif;font-size:16pt;font-weight:bold;">
+稽催清冊
+</div>
+</div>`;
+
+    const htmlContent =
+        titleHtml + clonedTable.outerHTML;
+
+    const blobHtml =
+        new Blob([htmlContent], {
+            type:'text/html'
+        });
+
+    const blobText =
+        new Blob([clonedTable.innerText], {
+            type:'text/plain'
+        });
+
+    const data = [
+        new ClipboardItem({
+            'text/html': blobHtml,
+            'text/plain': blobText
+        })
+    ];
+
+    navigator.clipboard.write(data)
+    .then(()=>{
+
+        alert('已複製正式表格');
+
+    });
+
+}
+
+
+
+
+function exportWordReport(){
+
+    const table =
+        document.querySelector('table');
+
+    if(!table){
+        alert('目前沒有資料');
+        return;
+    }
+
+    const clonedTable =
+        table.cloneNode(true);
+
+    clonedTable.style.borderCollapse = 'collapse';
+    clonedTable.style.width = '100%';
+    clonedTable.style.fontFamily =
+        "'DFKai-SB','標楷體',serif";
+
+    clonedTable.querySelectorAll('th,td')
+    .forEach(cell=>{
+
+        cell.style.border =
+            '1px solid black';
+
+        cell.style.padding =
+            '8px 6px';
+
+        cell.style.fontFamily =
+            "'DFKai-SB','標楷體',serif";
+
+        cell.style.fontSize = '12pt';
+        cell.style.verticalAlign = 'middle';
+
+        if(cell.tagName === 'TH'){
+            cell.style.backgroundColor = '#d9d9d9';
+            cell.style.textAlign = 'center';
+            cell.style.fontWeight = 'bold';
+        }
+
+    });
+
+    const htmlContent = `
+    <html>
+    <head>
+    <meta charset="utf-8">
+    </head>
+    <body>
+
+    <div style="text-align:center;margin-bottom:10px;">
+        <div style="
+            font-family:'Microsoft JhengHei',sans-serif;
+            font-size:18pt;
+            font-weight:bold;
+            margin-bottom:2px;
+        ">
+            環興科技股份有限公司
+        </div>
+
+        <div style="
+            font-family:'Microsoft JhengHei',sans-serif;
+            font-size:16pt;
+            font-weight:bold;
+        ">
+            稽催清冊
+        </div>
+    </div>
+
+    ${clonedTable.outerHTML}
+
+    </body>
+    </html>
+    `;
+
+    const blob = new Blob(
+        ['\ufeff', htmlContent],
+        {
+            type:'application/msword'
+        }
+    );
+
+    const url =
+        URL.createObjectURL(blob);
+
+    const a =
+        document.createElement('a');
+
+    a.href = url;
+    a.download = '稽催清冊.doc';
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
+
+}
+
+</script>
+
+<style>
+*{
+    box-sizing:border-box;
+    font-family:"Microsoft JhengHei",sans-serif;
+}
+
+body{
+    margin:0;
+    background:#f4f6f9;
+    color:#333;
+}
+
+.header{
+    background:linear-gradient(135deg,#1f4e79,#2f75b5);
+    color:white;
+    padding:22px 30px;
+    font-size:30px;
+    font-weight:bold;
+}
+
+.container{
+    padding:24px;
+}
+
+.toolbar{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+}
+
+input,select{
+    padding:12px;
+    border-radius:12px;
+    border:1px solid #ccc;
+}
+
+button{
+    background:#1f4e79;
+    color:white;
+    border:none;
+    padding:12px 18px;
+    border-radius:12px;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+.summary{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:15px;
+    margin-bottom:20px;
+}
+
+.card{
+    background:white;
+    border-radius:18px;
+    padding:20px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.08);
+}
+
+.card-title{
+    color:#666;
+    margin-bottom:10px;
+}
+
+.card-number{
+    font-size:32px;
+    font-weight:bold;
+}
+
+.table-wrap{
+    background:white;
+    border-radius:18px;
+    overflow:auto;
+    box-shadow:0 2px 10px rgba(0,0,0,0.08);
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:1200px;
+}
+
+thead{
+    background:#1f4e79;
+    color:white;
+    position:sticky;
+    top:0;
+}
+
+th,td{
+    padding:12px;
+    text-align:center;
+    border-bottom:1px solid #eee;
+}
+
+tr:hover{
+    background:#f7fbff;
+}
+
+/* 改成柔和色 */
+.overdue{
+    background:#fff7e8 !important;
+    color:#333 !important;
+}
+
+/* 主旨欄靠左 */
+.subject-cell{
+    text-align:left !important;
+    min-width:400px;
+    line-height:1.6;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">
+<div style="font-size:18px;font-weight:normal;opacity:0.95;">
+環興科技股份有限公司
+</div>
+
+<div style="font-size:34px;font-weight:bold;margin-top:4px;">
+公文逾期稽催管理系統
+</div>
+
+
+</div>
+
+<div style="font-size:34px;font-weight:bold;margin-top:4px;">
+
+</div>
+</div>
+
+<div class="container">
+
+<div id="todayDateBanner" style="
+background:#ffffff;
+border-left:5px solid #1f4e79;
+padding:14px 18px;
+margin-bottom:20px;
+border-radius:12px;
+font-size:24px;font-weight:bold;letter-spacing:2px;
+font-weight:bold;
+box-shadow:0 2px 8px rgba(0,0,0,0.08);
+">
+📅 稽催日期：
+<input type="date" id="auditDate"
+style="padding:8px 12px;border-radius:8px;border:1px solid #ccc;font-size:16px;">
+</div>
+
+<div class="toolbar">
+
+<input type="file" id="excelFile" accept=".xlsx,.xls">
+
+<select id="docTypeFilter">
+<option value="收文" selected>收文</option>
+<option value="發文">發文</option>
+<option value="">全部公文</option>
+</select>
+
+<select id="sheetSelect">
+<option>請先匯入Excel</option>
+</select>
+
+<input type="text" id="searchInput"
+placeholder="搜尋文號 / 主旨 / 承辦人">
+
+<button onclick="copyTableResult()">
+複製查詢結果
+</button>
+
+<button onclick="exportWordReport()">
+匯出Word報表
+</button>
+
+<button onclick="exportExcel()">
+匯出Excel
+</button>
+
+</div>
+
+<div style="
+margin-bottom:18px;
+background:white;
+padding:14px 18px;
+border-radius:14px;
+box-shadow:0 2px 10px rgba(0,0,0,0.08);
+font-size:16px;
+font-weight:bold;
+color:#1f4e79;
+">
+
+
+<div class="summary">
+
+<div class="card">
+<div class="card-title">收文逾期案件數</div>
+<div class="card-number" id="totalCount">0</div>
+</div>
+
+<div class="card">
+<div class="card-title">發文逾期案件數</div>
+<div class="card-number" id="overdueCount">0</div>
+</div>
+
+<div class="card">
+<div class="card-title">目前分頁</div>
+<div class="card-number" id="currentSheet"
+style="font-size:22px;"></div>
+</div>
+
+</div>
+
+<div class="table-wrap">
+
+<table>
+
+<thead>
+<tr id="tableHead"></tr>
+</thead>
+
+<tbody id="tableBody"></tbody>
+
+</table>
+
+</div>
+
+</div>
+
+<script>
+
+let workbookData = null;
+let originalData = [];
+
+document.getElementById('excelFile')
+.addEventListener('change',handleFile);
+
+document.getElementById('sheetSelect')
+.addEventListener('change',loadSelectedSheet);
+
+document.getElementById('searchInput')
+.addEventListener('input',filterTable);
+
+document.getElementById('docTypeFilter')
+.addEventListener('change',filterTable);
+
+function handleFile(e){
+
+    const file = e.target.files[0];
+
+    const reader = new FileReader();
+
+    reader.onload = function(evt){
+
+        const data = new Uint8Array(evt.target.result);
+
+        workbookData = XLSX.read(data,{
+            type:'array',
+            cellDates:true
+        });
+
+        loadSheetList();
+
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+function loadSheetList(){
+
+    const select =
+        document.getElementById('sheetSelect');
+
+    select.innerHTML = '';
+
+    workbookData.SheetNames.forEach(name=>{
+
+        const option =
+            document.createElement('option');
+
+        option.value = name;
+        option.textContent = name;
+
+        select.appendChild(option);
+
+    });
+
+    loadSelectedSheet();
+}
+
+function loadSelectedSheet(){
+
+    const sheetName =
+        document.getElementById('sheetSelect').value;
+
+    document.getElementById('currentSheet')
+    .innerText = sheetName;
+
+    const ws =
+        workbookData.Sheets[sheetName];
+
+    const rows = XLSX.utils.sheet_to_json(ws,{
+        header:1,
+        defval:''
+    });
+
+    let headerRowIndex = 0;
+
+    rows.forEach((row,index)=>{
+
+        const text = row.join('|');
+
+        if(
+            text.includes('總收發文號') ||
+            text.includes('收文日期') ||
+            text.includes('應歸檔日期')
+        ){
+            headerRowIndex = index;
+        }
+
+    });
+
+    const headers = rows[headerRowIndex];
+
+    const dataRows =
+        rows.slice(headerRowIndex + 1);
+
+    const data = dataRows.map(r=>{
+
+        let obj = {};
+
+        headers.forEach((h,i)=>{
+
+            if(h){
+                obj[h] = r[i];
+            }
+
+        });
+
+        return obj;
+
+    });
+
+    processData(data);
+
+    // 預設只顯示收文
+    document.getElementById('docTypeFilter').value = '收文';
+    filterTable();
+}
+
+function processData(data){
+
+    const today = new Date();
+
+originalData = data.map(item=>{
+
+        let overdueDays = 0;
+
+        const dueDateValue =
+            item['應歸檔日期'] ||
+            item['限辦日期'] ||
+            item['歸檔日期'];
+
+        if(dueDateValue){
+
+            const dueDate =
+                new Date(dueDateValue);
+
+            if(!isNaN(dueDate)){
+
+                const diffDays =
+                    Math.floor(
+                        (today - dueDate)
+                        / (1000*60*60*24)
+                    );
+
+                if(diffDays > 0){
+
+                    overdueDays = diffDays;
+
+                }
+            }
+        }
+
+        // 判斷公文類型
+        let docType = '';
+
+        const receiveDate =
+            item['收文日期']
+            ? new Date(item['收文日期'])
+            : null;
+
+        if(
+            receiveDate &&
+            dueDateValue &&
+            !isNaN(receiveDate)
+        ){
+
+            const dueDate =
+                new Date(dueDateValue);
+
+            if(!isNaN(dueDate)){
+
+                const processDays =
+                    Math.floor(
+                        (dueDate - receiveDate)
+                        / (1000*60*60*24)
+                    );
+
+                docType =
+                    processDays >= 14
+                    ? '收文'
+                    : '發文';
+            }
+        }
+
+        return {
+            ...item,
+            '公文類型': docType,
+            '已逾期天數': overdueDays
+        };
+
+    });
+
+    renderTable(originalData);
+}
+
+function renderTable(data){
+
+    const head =
+        document.getElementById('tableHead');
+
+    const body =
+        document.getElementById('tableBody');
+
+    head.innerHTML = '';
+    body.innerHTML = '';
+
+    if(data.length === 0){
+        return;
+    }
+
+    const headers =
+        Object.keys(data[0])
+        ;
+
+    headers.forEach(h=>{
+
+        const th =
+            document.createElement('th');
+
+        
+if(h === '總收發文號'){
+    th.innerText = '表單編號';
+}else{
+    th.innerText = h;
+}
+
+
+        head.appendChild(th);
+
+    });
+
+    let overdueCount = 0;
+
+    data.forEach(row=>{
+
+        const tr =
+            document.createElement('tr');
+
+        if(row['已逾期天數'] > 0){
+
+            tr.classList.add('overdue');
+            overdueCount++;
+
+        }
+
+        headers.forEach(h=>{
+
+            const td =
+                document.createElement('td');
+
+            td.innerText = row[h] ?? '';
+
+            // 主旨靠左
+            if(
+                h.includes('主旨') ||
+                h.includes('案由')
+            ){
+                td.classList.add('subject-cell');
+            }
+
+            tr.appendChild(td);
+
+        });
+
+        body.appendChild(tr);
+
+    });
+
+    // 收發文統計
+    const receiveCount =
+        originalData.filter(item=>
+            item['公文類型'] === '收文'
+        ).length;
+
+    const sendCount =
+        originalData.filter(item=>
+            item['公文類型'] === '發文'
+        ).length;
+
+    document.getElementById('totalCount')
+    .innerText = receiveCount;
+
+    document.getElementById('overdueCount')
+    .innerText = sendCount;
+}
+
+function filterTable(){
+
+    const keyword =
+        document.getElementById('searchInput')
+        .value.toLowerCase();
+
+    const typeFilter =
+        document.getElementById('docTypeFilter')
+        .value;
+
+    const filtered =
+        originalData.filter(item=>{
+
+        const matchKeyword =
+            Object.values(item)
+            .some(v=>String(v)
+            .toLowerCase()
+            .includes(keyword));
+
+        const matchType =
+            !typeFilter ||
+            item['公文類型'] === typeFilter;
+
+        return matchKeyword && matchType;
+
+    });
+
+    renderTable(filtered);
+}
+
+function exportExcel(){
+
+    const worksheet =
+        XLSX.utils.json_to_sheet(originalData);
+
+    const workbook =
+        XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        '公文稽催'
+    );
+
+    XLSX.writeFile(
+        workbook,
+        '公文稽催平台.xlsx'
+    );
+}
+
+
+window.addEventListener('DOMContentLoaded', function(){
+
+    const today = new Date();
+
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+
+    const dateInput =
+        document.getElementById('auditDate');
+
+    if(dateInput){
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+
+});
+
+
+
+
+function copyTableResult(){
+
+    const table =
+        document.querySelector('table');
+
+    if(!table){
+        return;
+    }
+
+    // 複製表格並強制每格字體
+    const clonedTable =
+        table.cloneNode(true);
+
+    clonedTable.style.fontFamily =
+        "'DFKai-SB','標楷體',serif";
+
+    clonedTable.style.fontSize =
+        "12pt";
+
+    clonedTable.style.borderCollapse =
+        "collapse";
+
+    clonedTable.style.width = "100%";
+
+    clonedTable.style.tableLayout =
+        "fixed";
+
+    clonedTable.style.border =
+        "1px solid black";
+
+    clonedTable.querySelectorAll('th,td')
+    .forEach(cell=>{
+
+        cell.style.fontFamily =
+            "'DFKai-SB','標楷體',serif";
+
+        cell.style.fontSize = "12pt";
+
+        cell.style.border =
+            "1px solid black";
+
+        cell.style.padding =
+            "8px 6px";
+
+        cell.style.verticalAlign =
+            "middle";
+
+        cell.style.wordBreak =
+            "break-word";
+
+        // 主旨欄靠左
+        const headerRow =
+            clonedTable.querySelectorAll('th');
+
+        let subjectIndex = -1;
+
+        headerRow.forEach((th,index)=>{
+
+            if(
+                th.innerText.includes('主旨') ||
+                th.innerText.includes('案由')
+            ){
+                subjectIndex = index;
+            }
+
+        });
+
+        const row =
+            cell.parentElement;
+
+        const cells =
+            Array.from(row.children);
+
+        const currentIndex =
+            cells.indexOf(cell);
+
+        if(currentIndex === subjectIndex){
+
+            // 表頭維持置中
+            if(cell.tagName === 'TD'){
+                cell.style.textAlign = "left";
+            }else{
+                cell.style.textAlign = "center";
+            }
+
+        }
+
+        
+        // 固定欄寬
+        const headerText =
+            headerRow[currentIndex]
+            ? headerRow[currentIndex].innerText.trim()
+            : '';
+
+        if(headerText.includes('表單編號')){
+            cell.style.width = '105px';
+            cell.style.textAlign = 'center';
+        }
+
+        if(
+            headerText.includes('主旨') ||
+            headerText.includes('案由')
+        ){
+            cell.style.width = '520px';
+        }
+
+        if(headerText.includes('收文日期')){
+            cell.style.width = '95px';
+            cell.style.textAlign = 'center';
+        }
+
+        if(
+            headerText.includes('應歸檔日期') ||
+            headerText.includes('限辦日期')
+        ){
+            cell.style.width = '105px';
+            cell.style.textAlign = 'center';
+        }
+
+        if(headerText.includes('已逾期天數')){
+            cell.style.width = '72px';
+        }
+
+// 已逾期天數置中
+        if(
+            cell.innerText &&
+            !isNaN(cell.innerText.trim())
+        ){
+            cell.style.textAlign = "center";
+        }
+
+    });
+
+    
+    // 複製時移除公文類型欄
+    const clonedHeaders =
+        clonedTable.querySelectorAll('th');
+
+    let removeIndex = -1;
+
+    clonedHeaders.forEach((th,index)=>{
+
+        if(th.innerText.trim() === '公文類型'){
+            removeIndex = index;
+        }
+
+    });
+
+    if(removeIndex >= 0){
+
+        clonedTable.querySelectorAll('tr')
+        .forEach(tr=>{
+
+            const cells =
+                tr.querySelectorAll('th,td');
+
+            if(cells[removeIndex]){
+                cells[removeIndex].remove();
+            }
+
+        });
+
+    }
+
+
+const titleHtml = `
+<div style="width:100%;text-align:center;margin-bottom:12px;">
+<div style="font-family:'Microsoft JhengHei',sans-serif;font-size:18pt;font-weight:bold;margin-bottom:2px;">
+環興科技股份有限公司
+</div>
+<div style="font-family:'Microsoft JhengHei',sans-serif;font-size:16pt;font-weight:bold;">
+稽催清冊
+</div>
+</div>`;
+
+    const htmlContent =
+        titleHtml + clonedTable.outerHTML;
+
+    const blobHtml =
+        new Blob([htmlContent], {
+            type:'text/html'
+        });
+
+    const blobText =
+        new Blob([clonedTable.innerText], {
+            type:'text/plain'
+        });
+
+    const data = [
+        new ClipboardItem({
+            'text/html': blobHtml,
+            'text/plain': blobText
+        })
+    ];
+
+    navigator.clipboard.write(data)
+    .then(()=>{
+
+        alert('已複製正式表格');
+
+    });
+
+}
+
+
+
+
+function exportWordReport(){
+
+    const table =
+        document.querySelector('table');
+
+    if(!table){
+        alert('目前沒有資料');
+        return;
+    }
+
+    const clonedTable =
+        table.cloneNode(true);
+
+    clonedTable.style.borderCollapse = 'collapse';
+    clonedTable.style.width = '100%';
+    clonedTable.style.fontFamily =
+        "'DFKai-SB','標楷體',serif";
+
+    clonedTable.querySelectorAll('th,td')
+    .forEach(cell=>{
+
+        cell.style.border =
+            '1px solid black';
+
+        cell.style.padding =
+            '8px 6px';
+
+        cell.style.fontFamily =
+            "'DFKai-SB','標楷體',serif";
+
+        cell.style.fontSize = '12pt';
+        cell.style.verticalAlign = 'middle';
+
+        if(cell.tagName === 'TH'){
+            cell.style.backgroundColor = '#d9d9d9';
+            cell.style.textAlign = 'center';
+            cell.style.fontWeight = 'bold';
+        }
+
+    });
+
+    const htmlContent = `
+    <html>
+    <head>
+    <meta charset="utf-8">
+    </head>
+    <body>
+
+    <div style="text-align:center;margin-bottom:10px;">
+        <div style="
+            font-family:'Microsoft JhengHei',sans-serif;
+            font-size:18pt;
+            font-weight:bold;
+            margin-bottom:2px;
+        ">
+            環興科技股份有限公司
+        </div>
+
+        <div style="
+            font-family:'Microsoft JhengHei',sans-serif;
+            font-size:16pt;
+            font-weight:bold;
+        ">
+            稽催清冊
+        </div>
+    </div>
+
+    ${clonedTable.outerHTML}
+
+    </body>
+    </html>
+    `;
+
+    const blob = new Blob(
+        ['\ufeff', htmlContent],
+        {
+            type:'application/msword'
+        }
+    );
+
+    const url =
+        URL.createObjectURL(blob);
+
+    const a =
+        document.createElement('a');
+
+    a.href = url;
+    a.download = '稽催清冊.doc';
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
+
+}
+
+</script>
+
+</body>
+</html>
